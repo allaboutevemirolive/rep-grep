@@ -1,30 +1,33 @@
-use std::path::PathBuf;
-use std::io::StdinLock;
+use indexmap::IndexMap;
 use regex::Regex;
 use std::io::prelude::*;
-use indexmap::IndexMap;
+use std::io::StdinLock;
+use std::path::PathBuf;
 
 #[derive(Debug)]
 pub(crate) struct Edit {
     pub(crate) file: PathBuf,
     pub(crate) text: String,
-    pub(crate) line_number: u32
+    pub(crate) line_number: u32,
 }
 
-#[derive(Debug)]
-#[derive(thiserror::Error)]
+#[derive(Debug, thiserror::Error)]
 pub enum Error {
-  #[error("No file, number, and text matches")]
-  Match,
+    #[error("No file, number, and text matches")]
+    Match,
 }
 
 impl Edit {
     pub(crate) fn new(file: PathBuf, text: String, line_number: u32) -> Edit {
-        Edit { file, text, line_number }
+        Edit {
+            file,
+            text,
+            line_number,
+        }
     }
 
-    pub(crate) fn parse (
-        reader: StdinLock<'_>
+    pub(crate) fn parse(
+        reader: StdinLock<'_>,
     ) -> Result<IndexMap<PathBuf, Vec<Edit>>, std::io::Error> {
         let mut path_to_edits = IndexMap::new();
         for line in reader.lines() {
@@ -36,10 +39,13 @@ impl Edit {
                 Ok(line) => line,
                 Err(_) => continue,
             };
+            // TODO: We can simplify this operation
             let key = &line.file;
             if !path_to_edits.contains_key(key) {
                 path_to_edits.insert(line.file.clone(), Vec::new());
             }
+            // This operation seems redundant but in fact it only store a file path where
+            // in the same filepath, there might be multiple needles.
             path_to_edits.get_mut(key).unwrap().push(line);
         }
         return Ok(path_to_edits);
@@ -73,11 +79,7 @@ impl Edit {
             None => return Err(Error::Match),
         };
 
-        return Ok(Edit::new(
-            file,
-            text,
-            number,
-        ))
+        return Ok(Edit::new(file, text, number));
     }
 }
 
